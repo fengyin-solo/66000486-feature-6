@@ -13,6 +13,7 @@ export interface ProteinParams {
 }
 
 export interface SamplingResult {
+  id: string
   params: ProteinParams
   conformations: Conformation[]
   energyRange: [number, number]

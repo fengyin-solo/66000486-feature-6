@@ -4,7 +4,7 @@
       <h3>📋 构象数据 (共 {{ confs.length }} 条)</h3>
       <el-button size="small" @click="exportCSV">导出 CSV</el-button>
     </div>
-    <el-table :data="confs" stripe max-height="360" highlight-current-row @row-click="onRowClick" size="small">
+    <el-table ref="tableRef" :data="confs" stripe max-height="360" highlight-current-row @row-click="onRowClick" size="small">
       <el-table-column prop="id" label="ID" width="60" />
       <el-table-column prop="phi" label="φ (°)" width="100">
         <template #default="{ row }">{{ row.phi.toFixed(2) }}</template>
@@ -26,16 +26,26 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch, nextTick } from 'vue'
 import { useProteinStore } from '../store/protein'
 import type { Conformation } from '../types'
 
 const store = useProteinStore()
+const tableRef = ref<{ setCurrentRow: (row: Conformation | null) => void }>()
 const confs = computed(() => (store.result?.conformations || []).filter(c =>
-  store.selectedCluster === 'all' || c.cluster === store.selectedCluster
+  store.selectedRegion === 'all' || c.region === store.selectedRegion
 ))
 
 function onRowClick(row: Conformation) { store.selectConformation(row) }
+// A selection restored from the address must also highlight its table row.
+watch(() => store.selectedConformation, async row => {
+  await nextTick()
+  tableRef.value?.setCurrentRow(row)
+})
+watch(() => store.result, async () => {
+  await nextTick()
+  tableRef.value?.setCurrentRow(store.selectedConformation)
+})
 function tagType(r: string) {
   const m: Record<string, any> = { 'alpha-helix': 'success', 'beta-sheet': 'danger', 'left-helix': 'warning' }
   return m[r] || 'info'

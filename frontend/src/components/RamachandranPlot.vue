@@ -32,7 +32,7 @@ function draw() {
   ctx.beginPath(); ctx.moveTo(W/2,0); ctx.lineTo(W/2,H); ctx.stroke()
   ctx.fillStyle="#666"; ctx.font="12px sans-serif"
   ctx.fillText("φ →",W-30,H/2-6); ctx.fillText("ψ ↑",W/2+6,16)
-  const confs = (store.result?.conformations||[]).filter(c=>store.selectedCluster==="all"||c.cluster===store.selectedCluster)
+  const confs = (store.result?.conformations||[]).filter(c=>store.selectedRegion==="all"||c.region===store.selectedRegion)
   const es = confs.map(c=>c.energy); const eMin=Math.min(...es),eMax=Math.max(...es)
   for(const cf of confs){
     const x = ((cf.phi+180)/360)*W, y = H-((cf.psi+180)/360)*H
@@ -48,7 +48,7 @@ function draw() {
   }
 }
 onMounted(draw)
-watch(()=>[store.result,store.selectedConformation,store.selectedCluster],draw,{deep:true})
+watch(()=>[store.result,store.selectedConformation,store.selectedRegion],draw,{deep:true})
 </script>
 
 <style scoped>

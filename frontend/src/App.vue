@@ -5,6 +5,15 @@
       <p class="subtitle">Ramachandran图 · LJ势能计算 · 3D骨架可视化</p>
     </header>
     <main class="app-main">
+      <el-alert
+        v-if="store.notice"
+        :title="store.notice"
+        type="warning"
+        show-icon
+        :closable="true"
+        class="state-notice"
+        @close="store.dismissNotice()"
+      />
       <ControlPanel @sample="handleSample" />
       <div class="main-grid" v-if="store.result">
         <div class="plot-area"><RamachandranPlot /></div>
@@ -16,6 +25,7 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted } from "vue"
 import ControlPanel from "./components/ControlPanel.vue"
 import RamachandranPlot from "./components/RamachandranPlot.vue"
 import ProteinViewer3D from "./components/ProteinViewer3D.vue"
@@ -25,6 +35,11 @@ import type { ProteinParams } from "./types"
 
 const store = useProteinStore()
 function handleSample(params: ProteinParams) { store.runSampling(params) }
+
+onMounted(() => {
+  store.bindPopState()
+  void store.restoreFromLocation()
+})
 </script>
 
 <style>
@@ -35,5 +50,6 @@ body{font-family:system-ui,sans-serif;background:#f0f2f5}
 .app-header h1{font-size:1.8rem}
 .subtitle{opacity:.85;margin-top:4px;font-size:.9rem}
 .app-main{padding:20px 40px}
+.state-notice{margin-bottom:16px}
 .main-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px}
 </style>

@@ -1,11 +1,19 @@
 import math
 import random
-from fastapi import FastAPI
+import time
+import uuid
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 app = FastAPI(title="Protein Folding Analyzer")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+# Batches are retained in memory so a shared link can reopen the exact same
+# result set. Only the most recent BATCH_LIMIT batches are kept; older batches
+# are evicted (replaced) and can no longer be fetched by id.
+BATCH_LIMIT = 20
+_batches: "dict[str, dict]" = {}
 
 RAMACHANDRAN_REGIONS = [
     {"name": "alpha-helix", "phi": (-100, -30), "psi": (-80, -10)},
@@ -41,10 +49,19 @@ class ConformationOut(BaseModel):
     cluster: str
 
 class SampleResponse(BaseModel):
+    id: str
     params: dict
     conformations: list[ConformationOut]
     energyRange: list[float]
     stats: dict
+
+
+def _store_batch(batch_id: str, payload: dict) -> None:
+    _batches[batch_id] = payload
+    if len(_batches) > BATCH_LIMIT:
+        oldest = min(_batches, key=lambda k: _batches[k]["createdAt"])
+        _batches.pop(oldest, None)
+
 
 @app.post("/api/sample", response_model=SampleResponse)
 def sample_conformations(req: SampleRequest):
@@ -70,7 +87,19 @@ def sample_conformations(req: SampleRequest):
     stats = {"alpha": regions.count("alpha-helix"), "beta": regions.count("beta-sheet"),
              "left": regions.count("left-helix"), "disallowed": regions.count("disallowed")}
 
-    return SampleResponse(
-        params={"residues": req.residues, "conformations": req.conformations},
-        conformations=confs, energyRange=[e_min, e_max], stats=stats
-    )
+    payload = {
+        "params": {"residues": req.residues, "conformations": req.conformations},
+        "conformations": confs, "energyRange": [e_min, e_max], "stats": stats,
+        "createdAt": time.time(),
+    }
+    batch_id = uuid.uuid4().hex
+    _store_batch(batch_id, payload)
+    return SampleResponse(id=batch_id, **payload)
+
+
+@app.get("/api/batch/{batch_id}", response_model=SampleResponse)
+def get_batch(batch_id: str):
+    payload = _batches.get(batch_id)
+    if payload is None:
+        raise HTTPException(status_code=404, detail="batch not found or has been replaced")
+    return SampleResponse(id=batch_id, **payload)

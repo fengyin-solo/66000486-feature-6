@@ -135,6 +135,13 @@ watch(() => store.selectedConformation, (conf) => {
   if (conf) buildBackbone(conf.phi, conf.psi)
 })
 
+// Rebuild for a batch restored from the address (or a fresh sampling).
+watch(() => store.result, () => {
+  const conf = store.selectedConformation
+  if (conf) buildBackbone(conf.phi, conf.psi)
+  else buildBackbone(-60, -45)
+})
+
 onUnmounted(() => {
   cancelAnimationFrame(animationId)
   window.removeEventListener('resize', onResize)
