@@ -126,14 +126,18 @@ function onResize() {
 
 onMounted(() => {
   initScene()
-  buildBackbone(-60, -45)
+  if (store.selectedConformation) {
+    buildBackbone(store.selectedConformation.phi, store.selectedConformation.psi)
+  } else {
+    buildBackbone(-60, -45)
+  }
   animate()
   window.addEventListener('resize', onResize)
 })
 
 watch(() => store.selectedConformation, (conf) => {
   if (conf) buildBackbone(conf.phi, conf.psi)
-})
+}, { immediate: true })
 
 onUnmounted(() => {
   cancelAnimationFrame(animationId)

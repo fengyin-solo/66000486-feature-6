@@ -12,7 +12,7 @@
       </el-form-item>
     </el-form>
     <div class="filters" v-if="store.result">
-      <el-radio-group v-model="activeCluster" @change="onCluster">
+      <el-radio-group :model-value="store.selectedRegion" @change="onRegion">
         <el-radio-button label="all">全部</el-radio-button>
         <el-radio-button label="alpha-helix">α-螺旋</el-radio-button>
         <el-radio-button label="beta-sheet">β-折叠</el-radio-button>
@@ -24,14 +24,23 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from "vue"
+import { reactive, watch } from "vue"
 import { useProteinStore } from "../store/protein"
-const emit = defineEmits<{ sample: [params: { residues: number; conformations: number }] }>()
+import type { ProteinParams, RegionFilter } from "../types"
+const emit = defineEmits<{ sample: [params: ProteinParams] }>()
 const store = useProteinStore()
 const form = reactive({ residues: 10, conformations: 1000 })
-const activeCluster = ref("all")
+
+// 按地址/缓存恢复（含刷新）后，表单参数跟随当前这批结果
+watch(() => store.result, (r) => {
+  if (r) {
+    form.residues = r.params.residues
+    form.conformations = r.params.conformations
+  }
+}, { immediate: true })
+
 function emitSample() { emit("sample", { ...form }) }
-function onCluster(val: string) { store.filterByCluster(val) }
+function onRegion(val: RegionFilter) { store.filterByRegion(val) }
 </script>
 
 <style scoped>

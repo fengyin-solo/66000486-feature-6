@@ -1,5 +1,6 @@
 import math
 import random
+from typing import Optional
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -31,6 +32,7 @@ def lennard_jones_energy(phi: float, psi: float, sigma: float = 3.4, epsilon: fl
 class SampleRequest(BaseModel):
     residues: int = 10
     conformations: int = 1000
+    seed: Optional[int] = None
 
 class ConformationOut(BaseModel):
     id: int
@@ -45,14 +47,18 @@ class SampleResponse(BaseModel):
     conformations: list[ConformationOut]
     energyRange: list[float]
     stats: dict
+    seed: int
 
 @app.post("/api/sample", response_model=SampleResponse)
 def sample_conformations(req: SampleRequest):
+    # 同一种子 + 参数必须确定性地产出同一批结果，保证链接复现
+    seed = req.seed if req.seed is not None else random.randrange(1, 2_000_000_000)
+    rng = random.Random(f"{seed}:{req.residues}:{req.conformations}")
     confs = []
     for i in range(req.conformations):
-        phi = random.uniform(-180, 180)
-        psi = random.uniform(-180, 180)
-        energy = lennard_jones_energy(phi, psi) + random.gauss(0, 0.05)
+        phi = rng.uniform(-180, 180)
+        psi = rng.uniform(-180, 180)
+        energy = lennard_jones_energy(phi, psi) + rng.gauss(0, 0.05)
         region = classify_region(phi, psi)
         confs.append({
             "id": i + 1, "phi": round(phi, 2), "psi": round(psi, 2),
@@ -72,5 +78,6 @@ def sample_conformations(req: SampleRequest):
 
     return SampleResponse(
         params={"residues": req.residues, "conformations": req.conformations},
-        conformations=confs, energyRange=[e_min, e_max], stats=stats
+        conformations=confs, energyRange=[e_min, e_max], stats=stats,
+        seed=seed
     )

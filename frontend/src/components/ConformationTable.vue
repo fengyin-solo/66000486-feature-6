@@ -4,7 +4,7 @@
       <h3>📋 构象数据 (共 {{ confs.length }} 条)</h3>
       <el-button size="small" @click="exportCSV">导出 CSV</el-button>
     </div>
-    <el-table :data="confs" stripe max-height="360" highlight-current-row @row-click="onRowClick" size="small">
+    <el-table ref="tableRef" :data="confs" stripe max-height="360" highlight-current-row @row-click="onRowClick" size="small">
       <el-table-column prop="id" label="ID" width="60" />
       <el-table-column prop="phi" label="φ (°)" width="100">
         <template #default="{ row }">{{ row.phi.toFixed(2) }}</template>
@@ -26,13 +26,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
+import type { TableInstance } from 'element-plus'
 import { useProteinStore } from '../store/protein'
 import type { Conformation } from '../types'
 
 const store = useProteinStore()
+const tableRef = ref<TableInstance>()
 const confs = computed(() => (store.result?.conformations || []).filter(c =>
-  store.selectedCluster === 'all' || c.cluster === store.selectedCluster
+  store.selectedRegion === 'all' || c.region === store.selectedRegion
 ))
 
 function onRowClick(row: Conformation) { store.selectConformation(row) }
@@ -50,6 +52,16 @@ function exportCSV() {
   const blob = new Blob([header + rows], { type: 'text/csv' })
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'conformations.csv'; a.click()
 }
+
+// 刷新或通过链接恢复后，把同一条选中记录在表格中高亮出来
+watch(() => [store.result, store.selectedConformation, store.selectedRegion], async () => {
+  await nextTick()
+  if (store.selectedConformation && confs.value.includes(store.selectedConformation)) {
+    tableRef.value?.setCurrentRow(store.selectedConformation)
+  } else {
+    tableRef.value?.setCurrentRow()
+  }
+}, { immediate: true })
 </script>
 
 <style scoped>
